@@ -11,6 +11,10 @@ def callDownloadApi( provider='eartharxiv', filterDate='', verbose=True ):
 
    # URLs for OSF API
 
+# new url as of June 2019
+#  https://api.osf.io/v2/preprints/35juv/?metrics[downloads]=total
+#  where 35juv is the preprint identifier
+
    # API URL to search/download preprints, NOTE: this is currently hard-coded to search EarthArXiv
    api_url_search = "https://api.osf.io/v2/preprints/?metrics[downloads]=total&page[size]=500&filter[provider]=" + provider
 

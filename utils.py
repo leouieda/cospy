@@ -1,7 +1,40 @@
 import json
 import requests
+import pandas as pd
 import urllib.request
-from Preprint import Preprint
+
+def createDataframe( preprints ):
+
+  # Create DataFrame
+  df = pd.DataFrame( for preprint in preprints )
+ 
+  return df
+
+def preprintDict():
+
+	d = {
+                        "identifier": '',
+                        "preprintProvider": '',
+                        "doi": '',
+                        "title": '',
+                        "abstract": '', 
+                        "status": '',
+                        "downloadURL": '', 
+                        "downloadCount": 0,
+                
+                        "dateModified": '', 
+                        "datePublished": '', 
+
+                        "doajURL": '',
+                        "doajPublisher": '', 
+                        "doajDoi": '',
+                        "doajPublicationDate": ''
+                
+                        "authors": [],
+                        "keywords": []
+     	}
+
+     return d
 
 # Helper function to download a file from a URL
 def download( url, localFile ):
@@ -135,3 +168,39 @@ def parsePreprints( preprints, json_object, headers, verbose=True ):
 		# Add the current preprint to our list of preprints
 		preprints.append( preprint )
 
+def parseIdentifierData( self, idJSON ):
+
+    if ( idJSON['attributes']['category'] == 'doi' ):
+        self.doi = 'https://dx.doi.org/' + idJSON['attributes']['value']
+
+def parseAttrData( self, attr ):
+
+    self.date_last_transitioned = attr['date_last_transitioned']
+    self.date_modified = attr['date_modified']
+    self.description = attr['description']
+    self.date_published = attr['date_published']
+    self.status = attr['reviews_state']
+    self.preprint_doi_created = attr['preprint_doi_created'] 
+    n = len( attr['subjects'] )
+    for i in range(n):
+        keyword = attr['subjects'][i]
+        n2 = len( keyword )
+        for j in range(n2):
+            # API returns the full keyword taxonomy, 
+            # i.e Physical Sciences and Mathematics -> Earth Sciences -> Geology
+            # We don't need to capture this each time
+            # If we already have Physical Sciences and Mathematics -> Earth Sciences then just grab Geology
+            if keyword[j]['text'] not in self.keywords:  
+                self.keywords.add( keyword[j]['text'] )
+
+
+def parseRelData( self, rel ):
+                        
+    # make sure the links entry is available
+    test = rel['identifiers']
+    if ( 'links' in test ):
+        self.identifiersLink = rel['identifiers']['links']['related']['href'] # DOI and other identifiers
+        self.citationLink = rel['citation']['links']['related']['href'] # citation details
+    else:
+        self.identifiersLink = ''
+        self.citationLink = ''
