@@ -1,7 +1,6 @@
 import json
 import requests
 import pandas as pd
-import urllib.request
 
 ####################
 ## URLs for OSF API
@@ -16,7 +15,54 @@ api_url_search = "https://api.osf.io/v2/preprints/?filter[provider]="
 ####################
 ####################
 
-def callOsfApi( cosApiToken, provider='eartharxiv', startDate='', endDate='', verbose=True ):
+def getProviders( cosApiToken ):
+
+	# Define a dictionary for the results
+	ids = []
+	descriptions = []
+	d = { "providerID": [], 
+	      "description": [] }
+
+	# Set up the headers to be sent as part of every API request
+	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {0}'.format(cosApiToken)}
+
+    # Send our request to the search API
+	response = queryAPI(api_url_providers, headers)
+
+    # Check the response status code, 200 indicates everything worked as expected
+	if response.status_code == 200:
+
+        # Extract the JSON data from the response
+		json_object = getJSON( response ) 
+		for i in range( len(json_object['data']) ):
+			provider = json_object['data'][i]['attributes']
+			descriptions.append( provider['description'] )
+			ids.append( json_object['data'][i]['id'] )
+
+		# We need to look at the Links data to see if there are additional pages. 
+		next = json_object['links']['next']
+
+    	# Send a request to the search API, this time for the next page
+		while( next != None ):
+			nextResponse = queryAPI(next, headers)
+			json_object = getJSON( nextResponse ) 
+			for i in range( len(json_object['data']) ):
+				provider = json_object['data'][i]['attributes']
+				descriptions.append( provider['description'] )
+				ids.append( json_object['data'][i]['id'] )
+				next = json_object['links']['next']
+
+	else:
+
+		# Something went wrong with the API call/response
+		print( "Error connecting to API, HTTP status code is: ", response.status_code )
+
+	d['providerID'] = ids
+	d['description'] = descriptions
+
+	return pd.DataFrame( d )
+
+def getManuscripts( cosApiToken, provider='eartharxiv', startDate='', endDate='', verbose=True ):
 
    # List to hold all our manuscripts
    manuscripts = []
@@ -74,12 +120,8 @@ def callOsfApi( cosApiToken, provider='eartharxiv', startDate='', endDate='', ve
        # Something went wrong with the API call/response
        print( "Error connecting to API, HTTP status code is: ", response.status_code )
 
-   return manuscripts
+   return pd.DataFrame( manuscripts )
 
-def createDataframe( manuscripts ):
-
-  # Create DataFrame
-  return pd.DataFrame( manuscripts )
  
 def createManuscriptDict():
 
@@ -107,26 +149,6 @@ def createManuscriptDict():
           "keywords": [] }
 
 	return d
-
-# Helper function to download a file from a URL
-def download( url, localFile ):
-	
-	error = False
-	message = ""
-
-	try:
-		response = urllib.request.urlretrieve(url, localFile)
-	except urllib.error.URLError:
-		error = True
-		message = "URL Error"	
-	except urllib.error.HTTPError:
-		error = True
-		message = "HTTP Error"
-	except urllib.error.ContentTooShortError:
-		error = True
-		message = "Content Too Short Error"
-
-	return error, message
 
 # Generic function to send a query to the API
 def queryAPI( url, headers ):
@@ -157,34 +179,19 @@ def parseCitation ( jsonData, manuscript ):
 # Helper function to parse JSON response and look for identifier data
 def parseIdentifier ( jsonData, manuscript ):
 
-	data = jsonData['data'][0]['attributes']
-	category = data['category'] 
-	value = data['value']
-	manuscript['identifier'] = value
-	manuscript['identifierType'] = category
+	# make sure we have valid data, sometimes the identifers are empty
+	test = len(jsonData['data'])
+	if ( test == 1 ):
+		data = jsonData['data'][0]['attributes']
+		category = data['category'] 
+		value = data['value']
+		manuscript['identifier'] = value
+		manuscript['identifierType'] = category
+	else:
+		manuscript['identifier'] = ''
+		manuscript['identifierType'] = ''
+
 	return manuscript
-
-# Funtion to loop over all download counts and extract data
-def parseDownloadCounts( json_object ):
-
-        dois = []
-        downloads = []
-        dates = []
-        for i in range( len(json_object['data']) ):
-
-                attr = json_object['data'][i]['attributes']
-                meta = json_object['data'][i]['meta']
-                links = json_object['data'][i]['links']
-
-                doi = links['preprint_doi']
-                download =  meta['metrics']['downloads']
-                date = attr['date_published']
-                 
-                dois.append(doi)
-                downloads.append(download)
-                dates.append(date)
-
-        return dois, dates, downloads
 
 # Function to loop over all preprints in the response and parse their data
 def parseManuscripts( provider, json_object, headers, verbose=True ):

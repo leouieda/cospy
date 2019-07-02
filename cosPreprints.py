@@ -1,6 +1,8 @@
 import os
 import sys
 import utils
+import extras.downloadStats as stats
+import extras.downloadManuscript as dm 
 
 def main():
 
@@ -16,8 +18,8 @@ def main():
    # start date - YYYY-MM-DD we should start the index from
    startDate = sys.argv[3]
    endDate = sys.argv[4]
-   # log file for the peer reviewed article data
-   peerReviewLog = sys.argv[5]
+   
+   df = utils.getProviders( cosApiToken )
 
    # seperator for log file
    s1 = ';'
@@ -41,7 +43,13 @@ def main():
    log = downloadDir + provider + '.log'
 
    # get the papers
-   preprints = utils.callOsfApi(cosApiToken, provider, startDate, endDate, verbose)
-   print( len(preprints) )
+   manuscripts = utils.getManuscripts(cosApiToken, provider, startDate, endDate, verbose)
+
+   # example downloading PDF
+   dm.download( manuscripts['downloadURL'][0], '/Users/narock/Desktop/test.pdf')
+
+   # example getting download statistics
+   downloads = stats.getDownloadStats( cosApiToken, manuscripts['cosID'][0] )
+   print( manuscripts['cosID'][0], 'downloaded', downloads, 'times')
 
 main()
