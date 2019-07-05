@@ -3,6 +3,7 @@ import sys
 import utils
 import extras.downloadStats as stats
 import extras.downloadManuscript as dm 
+import extras.unpaywall as up
 
 def main():
 
@@ -51,5 +52,9 @@ def main():
    # example getting download statistics
    downloads = stats.getDownloadStats( cosApiToken, manuscripts['cosID'][0] )
    print( manuscripts['cosID'][0], 'downloaded', downloads, 'times')
+
+   # example calling unpaywall
+   manuscripts, statistics = up.callUnpaywall( manuscripts, emailAddress )
+   print( statistics )
 
 main()

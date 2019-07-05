@@ -126,10 +126,9 @@ def getManuscripts( cosApiToken, provider='eartharxiv', startDate='', endDate=''
 def createManuscriptDict():
 
 	d = { "cosID": '', 
-	      "identifier": '',
-		  "identifierType": '',
+	      "preprintDoi": '',
+	      "peerReviewDoi": '',
           "preprintProvider": '',
-          "doi": '',
           "title": '',
           "abstract": '', 
           "status": '',
@@ -139,11 +138,6 @@ def createManuscriptDict():
                 
           "dateModified": '', 
           "datePublished": '', 
-
-          "doajURL": '',
-          "doajPublisher": '', 
-          "doajDoi": '',
-          "doajPublicationDate": '',
                 
           "authors": [],
           "keywords": [] }
@@ -177,21 +171,16 @@ def parseCitation ( jsonData, manuscript ):
 	return manuscript
 
 # Helper function to parse JSON response and look for identifier data
-def parseIdentifier ( jsonData, manuscript ):
+#def parseIdentifier ( jsonData, manuscript ):
 
 	# make sure we have valid data, sometimes the identifers are empty
-	test = len(jsonData['data'])
-	if ( test == 1 ):
-		data = jsonData['data'][0]['attributes']
-		category = data['category'] 
-		value = data['value']
-		manuscript['identifier'] = value
-		manuscript['identifierType'] = category
-	else:
-		manuscript['identifier'] = ''
-		manuscript['identifierType'] = ''
+#	test = len(jsonData['data'])
+#	if ( test >= 1 ):
+#		data = jsonData['data'][0]['attributes']
+#		manuscript['identifier'] = data['value']
+#		manuscript['identifierType'] = data['category']
 
-	return manuscript
+#	return manuscript
 
 # Function to loop over all preprints in the response and parse their data
 def parseManuscripts( provider, json_object, headers, verbose=True ):
@@ -209,6 +198,11 @@ def parseManuscripts( provider, json_object, headers, verbose=True ):
 
 		# Links also contains references to peer reviewed paper (if available) 
 		links = json_object['data'][i]['links']
+		if ( 'doi' in links ):
+			peer_review_doi = links['doi']
+		else:
+			peer_review_doi = ''
+		preprint_doi = links['preprint_doi']
 		html_link = links['html']
 		download_link = html_link + "/download"
 		
@@ -218,6 +212,8 @@ def parseManuscripts( provider, json_object, headers, verbose=True ):
 		manuscript['webURL'] = html_link
 		manuscript['downloadURL'] = download_link
 		manuscript['provider'] = provider
+		manuscript['preprintDoi'] = preprint_doi
+		manuscript['peerReviewDoi'] = peer_review_doi
 
 		# Parse the Attributes data for this manuscript
 		manuscript = parseAttrData( attr, manuscript )
@@ -227,14 +223,19 @@ def parseManuscripts( provider, json_object, headers, verbose=True ):
 
 		# Now that we have the identifiers link (from the Relationships data), send it back to the API
 		# to get the Identifier JSON and extract the actual DOI identifier
-		if ( identifiersLink != '' ):
+		if ( citationLink != '' ):
+		#if ( identifiersLink != '' ):
 		  
-			response2 = queryAPI( identifiersLink, headers )
-			if response2.status_code == 200:
-				json_object2 = getJSON( response2 )
-				manuscript = parseIdentifier( json_object2, manuscript )
-			else:
-				print( "Error parsing Identifier Link, HTTP status code is: ", response2.status_code )
+		    #############
+		    ## this is redundant - we can get the same info from the initial response
+		    #############
+
+			#response2 = queryAPI( identifiersLink, headers )
+			#if response2.status_code == 200:
+			#	json_object2 = getJSON( response2 )
+			#	manuscript = parseIdentifier( json_object2, manuscript )
+			#else:
+			#	print( "Error parsing Identifier Link, HTTP status code is: ", response2.status_code )
 
 			# Do the same with the citation link to get all the authors
 		
@@ -243,10 +244,7 @@ def parseManuscripts( provider, json_object, headers, verbose=True ):
 				json_object2 = getJSON( response2 )
 				manuscript = parseCitation( json_object2, manuscript )
 			else:
-				print( "Error parsing Citation Link, HTTP status code is: ", response2.status_code )
-
-			# check with unpaywall to see if there is a DOAJ version of this paper
-			#unpaywall( links )		
+				print( "Error parsing Citation Link, HTTP status code is: ", response2.status_code )	
 
 		# Add the current manuscript to our list 
 		manuscripts.append( manuscript )    
